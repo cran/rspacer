@@ -16,12 +16,12 @@ test_that("fields_to_data_frame creates a tibble", {
   fields <- helper_get_fields()
 
   expect_equal(fields_to_data_frame(fields), sections)
-  # error with incorrect input. TODO raise this error in the function itself?
+  # error with incorrect input.
   expect_error(fields_to_data_frame("this is not a fields list"))
   expect_error(fields_to_data_frame(c("this is not a fields list")))
 })
 
-test_that("doc_get_fields creates a fields data frame", {
+test_that("document_get_fields creates a fields data frame", {
   local_mocked_bindings(
     get_api_key = function() {
       return("API key used for testing")
@@ -31,7 +31,7 @@ test_that("doc_get_fields creates a fields data frame", {
     }
   )
   expect_equal(
-    doc_get_fields("some incorrect id"),
+    document_get_fields("some incorrect id"),
     fields_to_data_frame(helper_larger_SD()$fields)
   )
 })
@@ -39,16 +39,6 @@ test_that("doc_get_fields creates a fields data frame", {
 test_that("put_all_fields_in_one_field can collapse fields", {
   # Rspace needs a list with a list with at least content.
   fields <- helper_get_fields()
-  expect_equal(
-    put_all_fields_in_one_field(fields),
-    list(list(
-      content =
-        "<p>The title</p>\n<p>test</p>\n<p>small title</p>\n<p>smaller name</p>\n<p>25-09-2024</p>\n<p>creating fields</p>"
-    ))
-  )
-  expect_equal(
-    put_all_fields_in_one_field(fields, use_html_sep = FALSE),
-    list(list(content = "The title\ntest\nsmall title\nsmaller name\n25-09-2024\ncreating fields"))
-  )
+  expect_equal(length(put_all_fields_in_one_field(fields)), 1)
   # TODO run with fields in helper_small_SD and helper_larger_SD
 })

@@ -10,14 +10,47 @@ data_frame_to_fields <- function(fields_df) {
     row_list
   })
   fields <- as.list(fields)
+
+  # The API wants a plain array -> remove the names
+  names(fields) <- NULL
+
   return(fields)
 }
 
-fields_to_data_frame <- function(fields) {
-  tibble::tibble(fields = fields) |> tidyr::unnest_wider("fields")
+#' Convert fields list to a tibble
+#'
+#' @param fields fields list as retrieved from RSpace API
+#' @param simplify Whether to simplify the returned tibble by converting/removing columns
+#' @returns A tibble with the fields as rows.
+#' @export
+fields_to_data_frame <- function(fields, simplify = T) {
+  res <- tibble::tibble(fields = fields) |>
+    tidyr::unnest_wider("fields")
+  if(nrow(res) > 0 && simplify) {
+    if("lastModified" %in% colnames(res)) {
+      res <- res |>
+        dplyr::mutate(lastModified = lubridate::as_datetime(.data$lastModified))
+    }
+  }
+  res
 }
 
-doc_get_fields <- function(doc_id, api_key = get_api_key()) {
+#' Get the fields of a structured document as a tibble
+#'
+#' This function retrieves the fields of a structured document and returns them
+#' as a tibble, one row per field. As fields can contain HTML, the tibble can be
+#' displayed prettier with, for example, the `gt` package (see the Examples).
+#'
+#' @param doc_id Unique identifier of the document
+#' @inheritParams api_status
+#' @returns A tibble with the fields as rows.
+#' @export
+#' @examples
+#' \dontrun{
+#' library(gt)
+#' document_get_fields("SD123456") |> gt() |> fmt_markdown(columns = c(content))
+#' }
+document_get_fields <- function(doc_id, api_key = get_api_key()) {
   doc <- document_retrieve(doc_id, api_key)
   fields_to_data_frame(doc$fields)
 }
@@ -30,15 +63,17 @@ doc_get_fields <- function(doc_id, api_key = get_api_key()) {
 #'
 #' @keywords internal
 #' @param doc_body_fields multiple fields in a list
-#' @param use_html_sep If `TRUE`, each field is placed in a html paragraph
-#' @returns a list with one field, with only content, all contents from other fields, separated by `\n`.
-put_all_fields_in_one_field <- function(doc_body_fields, use_html_sep = TRUE) {
+#' @returns a list with one field containing all content from all fields
+put_all_fields_in_one_field <- function(doc_body_fields) {
   text_content <- fields_to_data_frame(doc_body_fields)
 
-  if (use_html_sep) {
-    text_content <- text_content |>
-      dplyr::mutate(content = paste0("<p>", as.character(.data$content), "</p>"))
-  }
+  # Add html structure
+  text_content <- text_content |>
+    dplyr::mutate(content = paste0(
+      "<h2>", as.character(.data$name), "</h2>",
+      "<p>", as.character(.data$content), "</p>"
+    ))
+
   # Collapse content into one field
   text_content <- text_content |>
     dplyr::pull(.data$content) |>
